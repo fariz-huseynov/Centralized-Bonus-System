@@ -2,8 +2,7 @@
 
 The Centralized Bonus System is a modern, AI-powered web application for managing employee data, bonuses, and performance. It features a sophisticated, ultra-realistic iOS-inspired UI, secure face verification, detailed analytics dashboards, and an interactive user experience.
 
-![Centralized Bonus System Screenshot](https://i.imgur.com/example.png) <!-- Placeholder: Replace with an actual screenshot -->
-
+<img width="2696" height="1525" alt="image" src="https://github.com/user-attachments/assets/721f96fd-774f-4e8a-82a2-08042c3fbc78" />
 ## ✨ Key Features
 
 -   **Elegant Employee Management**: Add, view, edit, and delete employee profiles through a clean, intuitive interface.
