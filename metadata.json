@@ -1,0 +1,7 @@
+{
+  "name": "Centralized Bonus System",
+  "description": "A modern, AI-powered web application for managing employee bonuses, with face verification, detailed analytics, and an interactive user experience, styled with Google Material Design.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
