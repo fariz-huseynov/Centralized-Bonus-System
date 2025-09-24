@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
 import type { Employee, AuditLog, WorkArea, ToastInfo, Role, Permission, AppSettings } from './types';
 import { generateEmployeeData, replaceBackground } from './services/geminiService';
@@ -737,7 +738,7 @@ const LuxuryLeaderboard: React.FC<{ logs: AuditLog[]; employees: Employee[] }> =
                             <p className="font-semibold text-gray-800">{item.name}</p>
                             <div className="bg-gray-200 rounded-full h-2.5 mt-1 overflow-hidden">
                                 <div 
-                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-full rounded-full transition-all duration-1000 ease-out"
+                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-full rounded-full transition-all duration-[1500ms] ease-out"
                                     style={{ width: `${(item.value / maxValue) * 100}%` }}
                                 ></div>
                             </div>
