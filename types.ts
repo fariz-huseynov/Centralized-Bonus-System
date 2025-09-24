@@ -31,3 +31,26 @@ export interface ToastInfo {
   message: string;
   type: 'success' | 'error' | 'info';
 }
+
+// --- NEW TYPES FOR MENU/ROLES ---
+export enum Permission {
+  ManageEmployees = 'Manage Employees',
+  ViewAnalytics = 'View Analytics',
+  EditSettings = 'Edit Settings',
+  ManageRoles = 'Manage Roles',
+  GenerateAuditLogs = 'Generate Audit Logs',
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  permissions: Permission[];
+}
+
+export interface AppSettings {
+  theme: 'light' | 'dark' | 'system';
+  notifications: {
+    email: boolean;
+    push: boolean;
+  };
+}

@@ -1,16 +1,28 @@
-
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
-import type { Employee, AuditLog, WorkArea, ToastInfo } from './types';
+import type { Employee, AuditLog, WorkArea, ToastInfo, Role, Permission, AppSettings } from './types';
 import { generateEmployeeData, replaceBackground } from './services/geminiService';
+import { Permission as PermissionEnum } from './types';
+
 
 // Recharts components from global UMD build
 declare const Recharts: any;
 
-// SweetAlert2 from global scope
-declare const Swal: any;
-
 // face-api.js from global scope
 declare const faceapi: any;
+
+// --- POPUP TYPES ---
+interface PopupAction {
+  text: string;
+  style?: 'default' | 'destructive' | 'cancel';
+  onClick: () => void;
+}
+
+interface PopupConfig {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  actions: PopupAction[];
+}
 
 // --- MOCK DATA ---
 const initialEmployees: Employee[] = [
@@ -43,6 +55,22 @@ const initialAuditLogs: AuditLog[] = [
     { id: '104', employeeId: '1', employeeName: 'John Doe', action: 'Item Packed', timestamp: new Date() },
 ];
 
+const allPermissions: Permission[] = Object.values(PermissionEnum);
+
+const initialRoles: Role[] = [
+    { id: 'role-1', name: 'Administrator', permissions: [...allPermissions] },
+    { id: 'role-2', name: 'Manager', permissions: [PermissionEnum.ManageEmployees, PermissionEnum.ViewAnalytics] },
+    { id: 'role-3', name: 'Employee', permissions: [PermissionEnum.ViewAnalytics] },
+];
+
+const initialSettings: AppSettings = {
+    theme: 'system',
+    notifications: {
+        email: true,
+        push: false,
+    },
+};
+
 const WORK_AREAS: WorkArea[] = ['Intake' as WorkArea, 'Refurb' as WorkArea, 'Picking' as WorkArea, 'Packing' as WorkArea, 'Shipping' as WorkArea];
 const AUDIT_ACTIONS = ['Item Picked', 'Item Packed', 'BDC Scanned', 'Item Intaken', 'Device Refurbished', 'Package Shipped'];
 
@@ -52,8 +80,15 @@ interface AppContextType {
     setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
     auditLogs: AuditLog[];
     setAuditLogs: React.Dispatch<React.SetStateAction<AuditLog[]>>;
+    roles: Role[];
+    setRoles: React.Dispatch<React.SetStateAction<Role[]>>;
+    settings: AppSettings;
+    setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
     addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
     generateLogsForEmployee: (employee: Employee) => void;
+    showPopup: (config: Omit<PopupConfig, 'isOpen'>) => void;
+    hidePopup: () => void;
+    popupConfig: PopupConfig;
 }
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -74,7 +109,13 @@ const Icons = {
     back: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>,
     ai: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" /></svg>,
     help: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.546-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    menu: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
+    settings: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0L8.12 5.12c-.67.33-1.27.78-1.78 1.35L4.4 5.23c-1.22-.8-2.75.28-2.4 1.76l.4 1.63c.2.82.59 1.57 1.1 2.2l-1.3 1.3c-1.08 1.08-.3 2.87 1.1 3.27l1.7.5c.78.24 1.47.65 2.05 1.18l.8 1.63c.78 1.59 2.8 1.12 3.27-.45l.5-1.7c.24-.78.65-1.47 1.18-2.05l1.63-.8c1.59-.78 1.12-2.8-.45-3.27l-1.7-.5c-.78-.24-1.47-.65-2.05-1.18l-.8-1.63zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>,
+    roles: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg>,
+    permissions: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5.026v10.152a1 1 0 00.586.908l7.25 4.027a1 1 0 00.828 0l7.25-4.027a1 1 0 00.586-.908V5.026A11.954 11.954 0 0110 1.944zM8.5 13.5a1 1 0 11-2 0 1 1 0 012 0zm2.293-4.293a1 1 0 011.414 0l.001.001c.293.293.293.767 0 1.06l-2.5 2.5a1 1 0 01-1.414 0l-1.5-1.5a1 1 0 111.414-1.414L10 10.086l.793-.793z" clipRule="evenodd" /></svg>,
+    chevronRight: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>,
 };
+
 
 // --- HELPER HOOKS ---
 function useFaceApi() {
@@ -127,11 +168,59 @@ function useFaceApi() {
 
 // --- UI COMPONENTS ---
 
-const Header: React.FC<{ onLoginClick: () => void, onHelpClick: () => void }> = ({ onLoginClick, onHelpClick }) => (
+const ApplePopup: React.FC = () => {
+    const { popupConfig, hidePopup } = useAppContext();
+
+    if (!popupConfig || !popupConfig.isOpen) return null;
+
+    const isVerticalLayout = popupConfig.actions.length > 2;
+    // Sort actions to ensure 'Cancel' is usually on the left/top for consistency
+    const sortedActions = [...popupConfig.actions].sort((a, b) => {
+        if (a.style === 'cancel') return -1;
+        if (b.style === 'cancel') return 1;
+        return 0;
+    });
+
+    return (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl w-full max-w-xs text-center shadow-lg" role="alertdialog" aria-modal="true" aria-labelledby="popup-title" aria-describedby="popup-message">
+                <div className="px-4 pt-4 pb-2">
+                    <h3 id="popup-title" className="font-semibold text-lg text-black">{popupConfig.title}</h3>
+                    <p id="popup-message" className="text-sm text-gray-800 mt-1">{popupConfig.message}</p>
+                </div>
+                <div className={`flex ${isVerticalLayout ? 'flex-col' : ''} border-t border-gray-300/50 mt-4`}>
+                    {sortedActions.map((action, index) => (
+                        <button
+                            key={action.text}
+                            onClick={() => {
+                                action.onClick();
+                                hidePopup();
+                            }}
+                            className={`
+                                w-full p-3 text-base text-blue-500 transition-colors hover:bg-black/5
+                                ${isVerticalLayout
+                                    ? index > 0 ? 'border-t border-gray-300/50' : ''
+                                    : index > 0 ? 'border-l border-gray-300/50' : ''
+                                }
+                                ${action.style === 'destructive' ? 'text-red-500 font-normal' : ''}
+                                ${action.style === 'cancel' ? 'font-semibold' : 'font-normal'}
+                            `}
+                        >
+                            {action.text}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const Header: React.FC<{ onLoginClick: () => void, onHelpClick: () => void, onMenuClick: () => void }> = ({ onLoginClick, onHelpClick, onMenuClick }) => (
     <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-30 border-b border-gray-200 p-4 flex justify-between items-center">
         <h1 className="text-xl font-semibold text-gray-800">Centralized Bonus System</h1>
         <div className="flex items-center space-x-2">
             <button onClick={onHelpClick} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors" title="Help/Walkthrough">{Icons.help}</button>
+            <button onClick={onMenuClick} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors" title="Menu">{Icons.menu}</button>
             <button onClick={onLoginClick} className="bg-gray-800 text-white font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-gray-700 transition-colors">
                 Face Login
             </button>
@@ -171,6 +260,7 @@ const WebcamCapture: React.FC<{
 }> = ({ onCapture, onClear, image, processing, onBackgroundReplace }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isStreaming, setIsStreaming] = useState(false);
+    const { showPopup } = useAppContext();
 
     const startCamera = async () => {
         try {
@@ -181,7 +271,7 @@ const WebcamCapture: React.FC<{
             }
         } catch (err) {
             console.error("Error accessing webcam:", err);
-            Swal.fire('Webcam Error', 'Could not access the webcam. Please check permissions.', 'error');
+            showPopup({ title: 'Webcam Error', message: 'Could not access the webcam. Please check permissions.', actions: [{ text: 'OK', style: 'default', onClick: () => {} }] });
         }
     };
     
@@ -264,7 +354,7 @@ const EmployeeFormModal: React.FC<{
     const [isAutoFilling, setIsAutoFilling] = useState(false);
     const [isReplacingBackground, setIsReplacingBackground] = useState(false);
     const { getEmbedding } = useFaceApi();
-    const { addToast } = useAppContext();
+    const { addToast, showPopup } = useAppContext();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -360,19 +450,13 @@ const EmployeeFormModal: React.FC<{
         }
 
         if (!newEmbedding && !employee) {
-            Swal.fire({
+            showPopup({
                 title: 'No Face Detected',
-                text: 'The employee will be saved, but Face Login will be unavailable. Do you want to continue?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, save anyway',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33'
-            }).then((result: any) => {
-                if (result.isConfirmed) {
-                    saveEmployee();
-                }
+                message: 'The employee will be saved, but Face Login will be unavailable. Do you want to continue?',
+                actions: [
+                    { text: 'Cancel', style: 'cancel', onClick: () => {} },
+                    { text: 'Save Anyway', style: 'default', onClick: saveEmployee }
+                ]
             });
         } else {
             saveEmployee();
@@ -751,7 +835,7 @@ const EmployeeDetails: React.FC<{ employeeId: string; onBack: () => void }> = ({
 
 const FaceLoginView: React.FC<{ onBack: () => void; onLoginSuccess: (employee: Employee) => void }> = ({ onBack, onLoginSuccess }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const { employees, addToast } = useAppContext();
+    const { employees, addToast, showPopup } = useAppContext();
     const { isReady, getEmbedding, findBestMatch } = useFaceApi();
     const [status, setStatus] = useState('Initializing...');
     const intervalRef = useRef<number | null>(null);
@@ -792,7 +876,7 @@ const FaceLoginView: React.FC<{ onBack: () => void; onLoginSuccess: (employee: E
             } catch (err) {
                 console.error("Error accessing webcam for login:", err);
                 setStatus('Webcam access denied.');
-                Swal.fire('Webcam Error', 'Could not access the webcam. Please check permissions.', 'error');
+                showPopup({ title: 'Webcam Error', message: 'Could not access the webcam. Please check permissions.', actions: [{ text: 'OK', style: 'default', onClick: () => {} }] });
             }
         }
         
@@ -927,17 +1011,239 @@ const Walkthrough: React.FC<{ isActive: boolean; onEnd: () => void }> = ({ isAct
     );
 }
 
+// --- NEW MENU COMPONENTS ---
+
+const SettingsView: React.FC = () => {
+    const { settings, setSettings } = useAppContext();
+
+    const handleToggle = (key: 'email' | 'push') => {
+        setSettings(s => ({
+            ...s,
+            notifications: {
+                ...s.notifications,
+                [key]: !s.notifications[key],
+            },
+        }));
+    };
+
+    return (
+        <div className="space-y-4">
+             <div className="bg-white rounded-lg">
+                <div className="p-4 flex justify-between items-center">
+                    <span className="text-gray-800">Email Notifications</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={settings.notifications.email} onChange={() => handleToggle('email')} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <div className="border-t border-gray-200 p-4 flex justify-between items-center">
+                    <span className="text-gray-800">Push Notifications</span>
+                     <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={settings.notifications.push} onChange={() => handleToggle('push')} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+             </div>
+        </div>
+    );
+};
+
+const PermissionsView: React.FC = () => (
+    <div className="bg-white rounded-lg p-4 space-y-2">
+        <p className="text-sm text-gray-500 mb-4">This is a list of all available system permissions. Assign them to roles to control user access.</p>
+        {allPermissions.map(permission => (
+            <div key={permission} className="p-3 bg-gray-50 rounded-md">
+                <span className="font-medium text-gray-700">{permission}</span>
+            </div>
+        ))}
+    </div>
+);
+
+const RolesView: React.FC = () => {
+    const { roles, setRoles, addToast, showPopup } = useAppContext();
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+
+    const handleSave = (roleToSave: Role) => {
+        if (!roleToSave.name.trim()) {
+            addToast('Role name cannot be empty.', 'error');
+            return;
+        }
+
+        setRoles(prev => {
+            const isExisting = prev.some(r => r.id === roleToSave.id);
+            if (isExisting) {
+                return prev.map(r => r.id === roleToSave.id ? roleToSave : r);
+            }
+            return [...prev, roleToSave];
+        });
+
+        addToast(`Role '${roleToSave.name}' saved successfully.`, 'success');
+        setEditingRole(null);
+        setIsCreating(false);
+    };
+    
+    const handleDelete = (roleId: string) => {
+        showPopup({
+            title: 'Delete Role?',
+            message: "This action cannot be undone.",
+            actions: [
+                { text: 'Cancel', style: 'cancel', onClick: () => {} },
+                { 
+                    text: 'Delete', 
+                    style: 'destructive', 
+                    onClick: () => {
+                        setRoles(prev => prev.filter(r => r.id !== roleId));
+                        addToast('Role deleted.', 'success');
+                        setEditingRole(null);
+                    } 
+                }
+            ]
+        });
+    };
+
+    if (editingRole || isCreating) {
+        const role = isCreating ? { id: `role-${Date.now()}`, name: '', permissions: [] } : editingRole!;
+        
+        return <RoleEditor role={role} onSave={handleSave} onCancel={() => { setEditingRole(null); setIsCreating(false); }} onDelete={handleDelete} />;
+    }
+
+    return (
+        <div>
+            <div className="flex justify-end mb-4">
+                <button onClick={() => setIsCreating(true)} className="flex items-center bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition">
+                    {Icons.add} <span className="ml-2">Add Role</span>
+                </button>
+            </div>
+            <div className="bg-white rounded-lg">
+                {roles.map((role, index) => (
+                    <div key={role.id} onClick={() => setEditingRole(role)} className={`p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 ${index < roles.length -1 ? 'border-b border-gray-200' : ''}`}>
+                        <div>
+                            <p className="font-medium text-gray-800">{role.name}</p>
+                            <p className="text-sm text-gray-500">{role.permissions.length} permissions</p>
+                        </div>
+                        {Icons.chevronRight}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const RoleEditor: React.FC<{ role: Role, onSave: (role: Role) => void, onCancel: () => void, onDelete: (roleId: string) => void }> = ({ role, onSave, onCancel, onDelete }) => {
+    const [currentRole, setCurrentRole] = useState(role);
+    const isNewRole = !initialRoles.some(r => r.id === role.id);
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCurrentRole(prev => ({ ...prev, name: e.target.value }));
+    };
+
+    const handlePermissionToggle = (permission: Permission) => {
+        setCurrentRole(prev => {
+            const hasPermission = prev.permissions.includes(permission);
+            const newPermissions = hasPermission
+                ? prev.permissions.filter(p => p !== permission)
+                : [...prev.permissions, permission];
+            return { ...prev, permissions: newPermissions };
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                 <input
+                    type="text"
+                    value={currentRole.name}
+                    onChange={handleNameChange}
+                    placeholder="Role Name"
+                    className="w-full text-2xl font-bold p-2 border-b-2 border-gray-200 focus:border-blue-500 outline-none"
+                />
+            </div>
+            
+            <div className="bg-white rounded-lg">
+                 {allPermissions.map((permission, index) => (
+                    <div key={permission} className={`p-4 flex justify-between items-center ${index < allPermissions.length - 1 ? 'border-b border-gray-200' : ''}`}>
+                        <span className="text-gray-800">{permission}</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={currentRole.permissions.includes(permission)} onChange={() => handlePermissionToggle(permission)} className="sr-only peer" />
+                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="flex justify-between items-center">
+                 <button onClick={() => onDelete(currentRole.id)} disabled={isNewRole} className="text-red-600 font-medium hover:underline disabled:text-gray-400 disabled:no-underline">Delete Role</button>
+                 <div className="space-x-2">
+                    <button onClick={onCancel} className="bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                    <button onClick={() => onSave(currentRole)} className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700 transition">Save</button>
+                 </div>
+            </div>
+        </div>
+    );
+};
+
+const MenuView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const [subView, setSubView] = useState<'main' | 'roles' | 'permissions' | 'settings'>('main');
+
+    const menuItems = [
+        { id: 'roles', label: 'Roles', icon: Icons.roles, view: 'roles' as const },
+        { id: 'permissions', label: 'Permissions', icon: Icons.permissions, view: 'permissions' as const },
+        { id: 'settings', label: 'Settings', icon: Icons.settings, view: 'settings' as const },
+    ];
+
+    const renderSubView = () => {
+        switch (subView) {
+            case 'roles': return <RolesView />;
+            case 'permissions': return <PermissionsView />;
+            case 'settings': return <SettingsView />;
+            case 'main':
+            default:
+                return (
+                    <div className="bg-white rounded-lg">
+                        {menuItems.map((item, index) => (
+                            <div key={item.id} onClick={() => setSubView(item.view)} className={`p-4 flex items-center space-x-4 cursor-pointer hover:bg-gray-50 ${index < menuItems.length - 1 ? 'border-b border-gray-200' : ''}`}>
+                                <div className="text-gray-600">{item.icon}</div>
+                                <span className="flex-grow text-gray-800 font-medium">{item.label}</span>
+                                {Icons.chevronRight}
+                            </div>
+                        ))}
+                    </div>
+                );
+        }
+    };
+    
+    const subViewTitle = subView.charAt(0).toUpperCase() + subView.slice(1);
+
+    return (
+        <div className="p-6 md:p-8 animate-fade-in">
+             <div className="flex items-center mb-6">
+                <button onClick={subView === 'main' ? onBack : () => setSubView('main')} className="flex items-center space-x-2 text-gray-600 font-medium hover:text-gray-900 transition-colors">
+                    {Icons.back}
+                    <span>{subView === 'main' ? 'Dashboard' : 'Menu'}</span>
+                </button>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">{subView === 'main' ? 'Menu' : subViewTitle}</h2>
+            {renderSubView()}
+        </div>
+    );
+};
+
 
 // --- MAIN APP COMPONENT ---
 export default function App() {
-    const [view, setView] = useState<'dashboard' | 'details' | 'login'>('dashboard');
+    const [view, setView] = useState<'dashboard' | 'details' | 'login' | 'menu'>('dashboard');
     const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>(initialAuditLogs);
+    const [roles, setRoles] = useState<Role[]>(initialRoles);
+    const [settings, setSettings] = useState<AppSettings>(initialSettings);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [toasts, setToasts] = useState<ToastInfo[]>([]);
     const [isWalkthroughActive, setIsWalkthroughActive] = useState(false);
+    const [popupConfig, setPopupConfig] = useState<PopupConfig>({ isOpen: false, title: '', message: '', actions: [] });
+
 
     // Toast logic
     const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -950,6 +1256,14 @@ export default function App() {
         setToasts(prev => prev.filter(t => t.id !== id));
     };
     
+    // Popup Logic
+    const showPopup = (config: Omit<PopupConfig, 'isOpen'>) => {
+        setPopupConfig({ ...config, isOpen: true });
+    };
+    const hidePopup = () => {
+        setPopupConfig(prev => ({ ...prev, isOpen: false }));
+    };
+
     const generateLogsForEmployee = (employee: Employee) => {
         const newLogs: AuditLog[] = [];
         for (let i = 0; i < 5; i++) { // Generate 5 logs for this employee
@@ -966,7 +1280,7 @@ export default function App() {
         addToast(`Generated 5 random audit logs for ${employee.firstName}.`, 'info');
     };
 
-    const contextValue = { employees, setEmployees, auditLogs, setAuditLogs, addToast, generateLogsForEmployee };
+    const contextValue = { employees, setEmployees, auditLogs, setAuditLogs, roles, setRoles, settings, setSettings, addToast, generateLogsForEmployee, showPopup, hidePopup, popupConfig };
 
     // Handlers
     const handleViewEmployee = (id: string) => {
@@ -990,23 +1304,20 @@ export default function App() {
         setEditingEmployee(null);
     };
     const handleDeleteEmployee = (id: string) => {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            background: '#fff',
-            customClass: {
-                popup: 'rounded-2xl'
-            }
-        }).then((result: any) => {
-            if (result.isConfirmed) {
-                setEmployees(prev => prev.filter(e => e.id !== id));
-                addToast('Employee deleted.', 'success');
-            }
+        showPopup({
+            title: 'Delete Employee?',
+            message: "This action cannot be undone and will permanently remove the employee's data.",
+            actions: [
+                { text: 'Cancel', style: 'cancel', onClick: () => {} },
+                { 
+                    text: 'Delete', 
+                    style: 'destructive', 
+                    onClick: () => {
+                        setEmployees(prev => prev.filter(e => e.id !== id));
+                        addToast('Employee deleted.', 'success');
+                    }
+                }
+            ]
         });
     };
     
@@ -1020,6 +1331,12 @@ export default function App() {
     }, []);
 
     const renderView = () => {
+        const headerProps = {
+            onLoginClick: () => setView('login'),
+            onHelpClick: () => setIsWalkthroughActive(true),
+            onMenuClick: () => setView('menu')
+        };
+
         switch (view) {
             case 'login':
                 return <FaceLoginView onBack={handleBackToDashboard} onLoginSuccess={emp => {
@@ -1028,15 +1345,22 @@ export default function App() {
             case 'details':
                 return (
                     <>
-                        <Header onLoginClick={() => setView('login')} onHelpClick={() => setIsWalkthroughActive(true)} />
+                        <Header {...headerProps} />
                         {selectedEmployeeId && <EmployeeDetails employeeId={selectedEmployeeId} onBack={handleBackToDashboard} />}
+                    </>
+                );
+             case 'menu':
+                return (
+                    <>
+                        <Header {...headerProps} />
+                        <MenuView onBack={handleBackToDashboard} />
                     </>
                 );
             case 'dashboard':
             default:
                 return (
                     <>
-                        <Header onLoginClick={() => setView('login')} onHelpClick={() => setIsWalkthroughActive(true)} />
+                        <Header {...headerProps} />
                         <main>
                             <Dashboard
                                 employees={employees}
@@ -1064,6 +1388,7 @@ export default function App() {
                 {isModalOpen && <EmployeeFormModal employee={editingEmployee} onClose={() => setIsModalOpen(false)} onSave={handleSaveEmployee} />}
                 <ToastContainer toasts={toasts} removeToast={removeToast} />
                 <Walkthrough isActive={isWalkthroughActive} onEnd={() => setIsWalkthroughActive(false)} />
+                <ApplePopup />
             </div>
         </AppContext.Provider>
     );
