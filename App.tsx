@@ -26,33 +26,26 @@ interface PopupConfig {
 
 // --- MOCK DATA ---
 const initialEmployees: Employee[] = [
-  {
-    id: '1',
-    firstName: 'John',
-    lastName: 'Doe',
-    bonusNumber: '123',
-    payrollNumber: '12345678',
-    workAreas: ['Picking' as WorkArea, 'Packing' as WorkArea],
-    photo: 'https://picsum.photos/seed/johndoe/200/200',
-    faceEmbedding: [],
-  },
-  {
-    id: '2',
-    firstName: 'Jane',
-    lastName: 'Smith',
-    bonusNumber: '456',
-    payrollNumber: '87654321',
-    workAreas: ['Intake' as WorkArea],
-    photo: 'https://picsum.photos/seed/janesmith/200/200',
-    faceEmbedding: [],
-  }
+    { id: '1', firstName: 'Emily', lastName: 'Johnson', bonusNumber: '345', payrollNumber: '98765432', workAreas: ['Picking', 'Packing'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=1', faceEmbedding: [] },
+    { id: '2', firstName: 'Michael', lastName: 'Williams', bonusNumber: '456', payrollNumber: '87654321', workAreas: ['Intake'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=2', faceEmbedding: [] },
+    { id: '3', firstName: 'Jessica', lastName: 'Brown', bonusNumber: '567', payrollNumber: '76543210', workAreas: ['Refurb', 'Shipping'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=3', faceEmbedding: [] },
+    { id: '4', firstName: 'Christopher', lastName: 'Jones', bonusNumber: '678', payrollNumber: '65432109', workAreas: ['Picking'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=4', faceEmbedding: [] },
+    { id: '5', firstName: 'Ashley', lastName: 'Garcia', bonusNumber: '789', payrollNumber: '54321098', workAreas: ['Packing', 'Shipping'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=5', faceEmbedding: [] },
+    { id: '6', firstName: 'Matthew', lastName: 'Miller', bonusNumber: '890', payrollNumber: '43210987', workAreas: ['Intake', 'Refurb'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=6', faceEmbedding: [] },
+    { id: '7', firstName: 'Amanda', lastName: 'Davis', bonusNumber: '901', payrollNumber: '32109876', workAreas: ['Picking'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=7', faceEmbedding: [] },
+    { id: '8', firstName: 'Daniel', lastName: 'Rodriguez', bonusNumber: '112', payrollNumber: '21098765', workAreas: ['Packing'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=8', faceEmbedding: [] },
+    { id: '9', firstName: 'Sarah', lastName: 'Martinez', bonusNumber: '223', payrollNumber: '10987654', workAreas: ['Shipping'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=9', faceEmbedding: [] },
+    { id: '10', firstName: 'David', lastName: 'Wilson', bonusNumber: '334', payrollNumber: '11223344', workAreas: ['Intake', 'Picking', 'Packing'] as WorkArea[], photo: 'https://i.pravatar.cc/200?u=10', faceEmbedding: [] },
 ];
 
 const initialAuditLogs: AuditLog[] = [
-    { id: '101', employeeId: '1', employeeName: 'John Doe', action: 'Item Picked', timestamp: new Date(Date.now() - 3600000 * 2) },
-    { id: '102', employeeId: '1', employeeName: 'John Doe', action: 'BDC Scanned', timestamp: new Date(Date.now() - 3600000 * 1.5) },
-    { id: '103', employeeId: '2', employeeName: 'Jane Smith', action: 'Item Intaken', timestamp: new Date(Date.now() - 3600000 * 3) },
-    { id: '104', employeeId: '1', employeeName: 'John Doe', action: 'Item Packed', timestamp: new Date() },
+    { id: '101', employeeId: '1', employeeName: 'Emily Johnson', action: 'Item Picked', timestamp: new Date(Date.now() - 3600000 * 2) },
+    { id: '102', employeeId: '1', employeeName: 'Emily Johnson', action: 'BDC Scanned', timestamp: new Date(Date.now() - 3600000 * 1.5) },
+    { id: '103', employeeId: '2', employeeName: 'Michael Williams', action: 'Item Intaken', timestamp: new Date(Date.now() - 3600000 * 3) },
+    { id: '104', employeeId: '1', employeeName: 'Emily Johnson', action: 'Item Packed', timestamp: new Date() },
+    { id: '105', employeeId: '3', employeeName: 'Jessica Brown', action: 'Device Refurbished', timestamp: new Date(Date.now() - 3600000 * 5) },
+    { id: '106', employeeId: '4', employeeName: 'Christopher Jones', action: 'Item Picked', timestamp: new Date(Date.now() - 3600000 * 4) },
+    { id: '107', employeeId: '2', employeeName: 'Michael Williams', action: 'BDC Scanned', timestamp: new Date(Date.now() - 3600000 * 2.5) },
 ];
 
 const allPermissions: Permission[] = Object.values(PermissionEnum);
@@ -651,7 +644,6 @@ const LuxurySummaryChart: React.FC<{ logs: AuditLog[] }> = ({ logs }) => {
     const chartData = Object.entries(tasksByAction).map(([action, count]) => ({
         name: action,
         tasks: count,
-        // The fill is now controlled by the gradient url
     }));
 
     if (chartData.length === 0) {
@@ -684,8 +676,8 @@ const LuxurySummaryChart: React.FC<{ logs: AuditLog[] }> = ({ logs }) => {
                 >
                     <defs>
                         <linearGradient id="luxuryGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.9}/>
+                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.9}/>
+                            <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.8}/>
                         </linearGradient>
                     </defs>
                     <RadialBar
@@ -745,7 +737,7 @@ const LuxuryLeaderboard: React.FC<{ logs: AuditLog[]; employees: Employee[] }> =
                             <p className="font-semibold text-gray-800">{item.name}</p>
                             <div className="bg-gray-200 rounded-full h-2.5 mt-1 overflow-hidden">
                                 <div 
-                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-full rounded-full transition-all duration-700 ease-out"
+                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-full rounded-full transition-all duration-1000 ease-out"
                                     style={{ width: `${(item.value / maxValue) * 100}%` }}
                                 ></div>
                             </div>
@@ -1013,40 +1005,65 @@ const Walkthrough: React.FC<{ isActive: boolean; onEnd: () => void }> = ({ isAct
 
 // --- NEW MENU COMPONENTS ---
 
+const IOSToggle: React.FC<{ checked: boolean; onChange: () => void; }> = ({ checked, onChange }) => (
+    <label className="relative inline-flex items-center cursor-pointer">
+        <input type="checkbox" checked={checked} onChange={onChange} className="sr-only peer" />
+        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+    </label>
+);
+
+const IOSSegmentedControl: React.FC<{ options: string[]; selected: string; onChange: (option: string) => void; }> = ({ options, selected, onChange }) => (
+    <div className="bg-gray-200 p-1 rounded-lg flex">
+        {options.map(option => (
+            <button
+                key={option}
+                onClick={() => onChange(option)}
+                className={`flex-1 py-1 px-3 text-sm font-medium rounded-md transition-all duration-300
+                    ${selected === option ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+            >
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+            </button>
+        ))}
+    </div>
+);
+
 const SettingsView: React.FC = () => {
     const { settings, setSettings } = useAppContext();
 
     const handleToggle = (key: 'email' | 'push') => {
-        setSettings(s => ({
-            ...s,
-            notifications: {
-                ...s.notifications,
-                [key]: !s.notifications[key],
-            },
-        }));
+        setSettings(s => ({ ...s, notifications: { ...s.notifications, [key]: !s.notifications[key] } }));
+    };
+    
+    const handleThemeChange = (theme: string) => {
+        setSettings(s => ({ ...s, theme: theme as 'light' | 'dark' | 'system' }));
     };
 
     return (
-        <div className="space-y-4">
-             <div className="bg-white rounded-lg">
-                <div className="p-4 flex justify-between items-center">
-                    <span className="text-gray-800">Email Notifications</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={settings.notifications.email} onChange={() => handleToggle('email')} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
+        <div className="space-y-8">
+            <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Appearance</h3>
+                <div className="bg-white rounded-lg p-4 flex justify-between items-center">
+                    <span className="text-gray-800">Theme</span>
+                    <IOSSegmentedControl options={['light', 'dark', 'system']} selected={settings.theme} onChange={handleThemeChange} />
                 </div>
-                <div className="border-t border-gray-200 p-4 flex justify-between items-center">
-                    <span className="text-gray-800">Push Notifications</span>
-                     <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={settings.notifications.push} onChange={() => handleToggle('push')} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
+            </div>
+            <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Notifications</h3>
+                <div className="bg-white rounded-lg">
+                    <div className="p-4 flex justify-between items-center">
+                        <span className="text-gray-800">Email Notifications</span>
+                        <IOSToggle checked={settings.notifications.email} onChange={() => handleToggle('email')} />
+                    </div>
+                    <div className="border-t border-gray-200 p-4 flex justify-between items-center">
+                        <span className="text-gray-800">Push Notifications</span>
+                        <IOSToggle checked={settings.notifications.push} onChange={() => handleToggle('push')} />
+                    </div>
                 </div>
-             </div>
+            </div>
         </div>
     );
 };
+
 
 const PermissionsView: React.FC = () => (
     <div className="bg-white rounded-lg p-4 space-y-2">
@@ -1059,78 +1076,7 @@ const PermissionsView: React.FC = () => (
     </div>
 );
 
-const RolesView: React.FC = () => {
-    const { roles, setRoles, addToast, showPopup } = useAppContext();
-    const [editingRole, setEditingRole] = useState<Role | null>(null);
-    const [isCreating, setIsCreating] = useState(false);
-
-    const handleSave = (roleToSave: Role) => {
-        if (!roleToSave.name.trim()) {
-            addToast('Role name cannot be empty.', 'error');
-            return;
-        }
-
-        setRoles(prev => {
-            const isExisting = prev.some(r => r.id === roleToSave.id);
-            if (isExisting) {
-                return prev.map(r => r.id === roleToSave.id ? roleToSave : r);
-            }
-            return [...prev, roleToSave];
-        });
-
-        addToast(`Role '${roleToSave.name}' saved successfully.`, 'success');
-        setEditingRole(null);
-        setIsCreating(false);
-    };
-    
-    const handleDelete = (roleId: string) => {
-        showPopup({
-            title: 'Delete Role?',
-            message: "This action cannot be undone.",
-            actions: [
-                { text: 'Cancel', style: 'cancel', onClick: () => {} },
-                { 
-                    text: 'Delete', 
-                    style: 'destructive', 
-                    onClick: () => {
-                        setRoles(prev => prev.filter(r => r.id !== roleId));
-                        addToast('Role deleted.', 'success');
-                        setEditingRole(null);
-                    } 
-                }
-            ]
-        });
-    };
-
-    if (editingRole || isCreating) {
-        const role = isCreating ? { id: `role-${Date.now()}`, name: '', permissions: [] } : editingRole!;
-        
-        return <RoleEditor role={role} onSave={handleSave} onCancel={() => { setEditingRole(null); setIsCreating(false); }} onDelete={handleDelete} />;
-    }
-
-    return (
-        <div>
-            <div className="flex justify-end mb-4">
-                <button onClick={() => setIsCreating(true)} className="flex items-center bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition">
-                    {Icons.add} <span className="ml-2">Add Role</span>
-                </button>
-            </div>
-            <div className="bg-white rounded-lg">
-                {roles.map((role, index) => (
-                    <div key={role.id} onClick={() => setEditingRole(role)} className={`p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 ${index < roles.length -1 ? 'border-b border-gray-200' : ''}`}>
-                        <div>
-                            <p className="font-medium text-gray-800">{role.name}</p>
-                            <p className="text-sm text-gray-500">{role.permissions.length} permissions</p>
-                        </div>
-                        {Icons.chevronRight}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const RoleEditor: React.FC<{ role: Role, onSave: (role: Role) => void, onCancel: () => void, onDelete: (roleId: string) => void }> = ({ role, onSave, onCancel, onDelete }) => {
+const RoleEditor: React.FC<{ role: Role; onSave: (role: Role) => void; onCancel: () => void; onDelete: (roleId: string) => void; }> = ({ role, onSave, onCancel, onDelete }) => {
     const [currentRole, setCurrentRole] = useState(role);
     const isNewRole = !initialRoles.some(r => r.id === role.id);
 
@@ -1156,28 +1102,107 @@ const RoleEditor: React.FC<{ role: Role, onSave: (role: Role) => void, onCancel:
                     value={currentRole.name}
                     onChange={handleNameChange}
                     placeholder="Role Name"
-                    className="w-full text-2xl font-bold p-2 border-b-2 border-gray-200 focus:border-blue-500 outline-none"
+                    className="w-full text-2xl font-bold p-2 border-b-2 border-gray-200 focus:border-blue-500 outline-none bg-transparent"
                 />
             </div>
             
+            <h3 className="text-xs font-semibold text-gray-500 uppercase px-4">Permissions</h3>
             <div className="bg-white rounded-lg">
                  {allPermissions.map((permission, index) => (
                     <div key={permission} className={`p-4 flex justify-between items-center ${index < allPermissions.length - 1 ? 'border-b border-gray-200' : ''}`}>
                         <span className="text-gray-800">{permission}</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked={currentRole.permissions.includes(permission)} onChange={() => handlePermissionToggle(permission)} className="sr-only peer" />
-                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
+                        <IOSToggle checked={currentRole.permissions.includes(permission)} onChange={() => handlePermissionToggle(permission)} />
                     </div>
                 ))}
             </div>
             
-            <div className="flex justify-between items-center">
-                 <button onClick={() => onDelete(currentRole.id)} disabled={isNewRole} className="text-red-600 font-medium hover:underline disabled:text-gray-400 disabled:no-underline">Delete Role</button>
+            <div className="flex justify-between items-center pt-4">
+                 <button onClick={() => onDelete(currentRole.id)} disabled={isNewRole} className="text-red-600 font-medium py-2 px-4 rounded-lg hover:bg-red-50 disabled:text-gray-400 disabled:bg-transparent transition">Delete Role</button>
                  <div className="space-x-2">
                     <button onClick={onCancel} className="bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition">Cancel</button>
-                    <button onClick={() => onSave(currentRole)} className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700 transition">Save</button>
+                    <button onClick={() => onSave(currentRole)} className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700 transition">Save Changes</button>
                  </div>
+            </div>
+        </div>
+    );
+};
+
+
+const RolesView: React.FC = () => {
+    const { roles, setRoles, addToast, showPopup } = useAppContext();
+    const [view, setView] = useState<'list' | 'editor'>('list');
+    const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+
+    const handleSave = (roleToSave: Role) => {
+        if (!roleToSave.name.trim()) {
+            addToast('Role name cannot be empty.', 'error');
+            return;
+        }
+
+        setRoles(prev => {
+            const isExisting = prev.some(r => r.id === roleToSave.id);
+            if (isExisting) {
+                return prev.map(r => r.id === roleToSave.id ? roleToSave : r);
+            }
+            return [...prev, roleToSave];
+        });
+
+        addToast(`Role '${roleToSave.name}' saved successfully.`, 'success');
+        setView('list');
+        setSelectedRole(null);
+    };
+    
+    const handleDelete = (roleId: string) => {
+        showPopup({
+            title: 'Delete Role?',
+            message: "This action cannot be undone. Users assigned to this role may lose access.",
+            actions: [
+                { text: 'Cancel', style: 'cancel', onClick: () => {} },
+                { 
+                    text: 'Delete', 
+                    style: 'destructive', 
+                    onClick: () => {
+                        setRoles(prev => prev.filter(r => r.id !== roleId));
+                        addToast('Role deleted.', 'success');
+                        setView('list');
+                        setSelectedRole(null);
+                    } 
+                }
+            ]
+        });
+    };
+    
+    const handleAddNew = () => {
+        setSelectedRole({ id: `role-${Date.now()}`, name: '', permissions: [] });
+        setView('editor');
+    };
+    
+    const handleSelectRole = (role: Role) => {
+        setSelectedRole(role);
+        setView('editor');
+    }
+
+    if (view === 'editor' && selectedRole) {
+        return <RoleEditor role={selectedRole} onSave={handleSave} onCancel={() => setView('list')} onDelete={handleDelete} />;
+    }
+
+    return (
+        <div>
+            <div className="flex justify-end mb-4">
+                <button onClick={handleAddNew} className="flex items-center bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition">
+                    {Icons.add} <span className="ml-2">Add Role</span>
+                </button>
+            </div>
+            <div className="bg-white rounded-lg">
+                {roles.map((role, index) => (
+                    <div key={role.id} onClick={() => handleSelectRole(role)} className={`p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 ${index < roles.length -1 ? 'border-b border-gray-200' : ''}`}>
+                        <div>
+                            <p className="font-medium text-gray-800">{role.name}</p>
+                            <p className="text-sm text-gray-500">{role.permissions.length} permissions</p>
+                        </div>
+                        {Icons.chevronRight}
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -1187,9 +1212,9 @@ const MenuView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [subView, setSubView] = useState<'main' | 'roles' | 'permissions' | 'settings'>('main');
 
     const menuItems = [
-        { id: 'roles', label: 'Roles', icon: Icons.roles, view: 'roles' as const },
-        { id: 'permissions', label: 'Permissions', icon: Icons.permissions, view: 'permissions' as const },
-        { id: 'settings', label: 'Settings', icon: Icons.settings, view: 'settings' as const },
+        { id: 'roles', label: 'Roles & Permissions', icon: Icons.roles, view: 'roles' as const },
+        { id: 'permissions', label: 'System Permissions', icon: Icons.permissions, view: 'permissions' as const },
+        { id: 'settings', label: 'App Settings', icon: Icons.settings, view: 'settings' as const },
     ];
 
     const renderSubView = () => {
@@ -1213,12 +1238,12 @@ const MenuView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         }
     };
     
-    const subViewTitle = subView.charAt(0).toUpperCase() + subView.slice(1);
+    const subViewTitle = menuItems.find(item => item.view === subView)?.label || 'Menu';
 
     return (
         <div className="p-6 md:p-8 animate-fade-in">
              <div className="flex items-center mb-6">
-                <button onClick={subView === 'main' ? onBack : () => setSubView('main')} className="flex items-center space-x-2 text-gray-600 font-medium hover:text-gray-900 transition-colors">
+                <button onClick={subView === 'main' ? onBack : () => setSubView('main')} className="flex items-center space-x-2 text-blue-600 font-medium hover:underline transition-colors">
                     {Icons.back}
                     <span>{subView === 'main' ? 'Dashboard' : 'Menu'}</span>
                 </button>
