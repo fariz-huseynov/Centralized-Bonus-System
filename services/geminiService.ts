@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { WorkArea } from '../types';
 
@@ -48,7 +47,13 @@ export const generateEmployeeData = async (): Promise<Partial<any>> => {
 
 export const replaceBackground = async (base64Image: string): Promise<string> => {
     if (!process.env.API_KEY) throw new Error("API key is not configured.");
-    const mimeType = base64Image.substring(5, base64Image.indexOf(';'));
+    
+    const match = base64Image.match(/^data:(image\/.+);base64,(.+)$/);
+    if (!match) {
+        throw new Error("Invalid image format. Expected a base64 data URL.");
+    }
+    const mimeType = match[1];
+    const imageData = match[2];
 
     try {
         const response = await ai.models.generateContent({
@@ -57,12 +62,12 @@ export const replaceBackground = async (base64Image: string): Promise<string> =>
                 parts: [
                     {
                         inlineData: {
-                            data: base64Image.split(',')[1],
+                            data: imageData,
                             mimeType: mimeType,
                         },
                     },
                     {
-                        text: 'Replace the background of this portrait with a professional and slightly blurred office setting. Keep the person in focus.',
+                        text: 'Replace the background of this portrait with a clean, solid white background. Keep the person in focus.',
                     },
                 ],
             },

@@ -82,10 +82,11 @@ function useFaceApi() {
 
     useEffect(() => {
         const loadModels = async () => {
-            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/weights';
+            const MODEL_URL = 'https://unpkg.com/face-api.js@0.22.2/weights';
             try {
                 await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                    // Switch to the lighter, more reliable tinyFaceDetector model
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
@@ -99,8 +100,9 @@ function useFaceApi() {
 
     const getEmbedding = async (imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) => {
         if (!isReady) return null;
-        const detections = await faceapi.detectSingleFace(imageElement).withFaceLandmarks().withFaceDescriptor();
-        // FIX: Cast descriptor to number array to ensure correct type from Array.from.
+        // Specify the tinyFaceDetector options when detecting faces
+        const options = new faceapi.TinyFaceDetectorOptions();
+        const detections = await faceapi.detectSingleFace(imageElement, options).withFaceLandmarks().withFaceDescriptor();
         return detections ? Array.from(detections.descriptor as number[]) : null;
     };
 
@@ -226,12 +228,6 @@ const WebcamCapture: React.FC<{
                 ) : (
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover transform -scale-x-100"></video>
                 )}
-                {processing && (
-                     <div className="absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center text-white rounded-full">
-                        <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p className="mt-2 text-sm font-medium">AI Processing...</p>
-                    </div>
-                )}
             </div>
             <div className="flex space-x-2">
                 {image ? (
@@ -247,6 +243,17 @@ const WebcamCapture: React.FC<{
     );
 };
 
+const urlToBase64 = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
 const EmployeeFormModal: React.FC<{
     employee: Employee | null;
     onClose: () => void;
@@ -256,8 +263,9 @@ const EmployeeFormModal: React.FC<{
         firstName: '', lastName: '', bonusNumber: '', payrollNumber: '', workAreas: [], photo: '', ...employee
     });
     const [newEmbedding, setNewEmbedding] = useState<number[] | null>(null);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const { getEmbedding, isReady: faceApiReady } = useFaceApi();
+    const [isAutoFilling, setIsAutoFilling] = useState(false);
+    const [isReplacingBackground, setIsReplacingBackground] = useState(false);
+    const { getEmbedding } = useFaceApi();
     const { addToast } = useAppContext();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,7 +299,7 @@ const EmployeeFormModal: React.FC<{
             addToast('API Key is not configured for AI features.', 'error');
             return;
         }
-        setIsProcessing(true);
+        setIsAutoFilling(true);
         try {
             const aiData = await generateEmployeeData();
             setFormData(prev => ({ ...prev, ...aiData }));
@@ -299,25 +307,29 @@ const EmployeeFormModal: React.FC<{
         } catch (error) {
             addToast((error as Error).message, 'error');
         } finally {
-            setIsProcessing(false);
+            setIsAutoFilling(false);
         }
     };
 
     const handleBackgroundReplace = async () => {
         if (!formData.photo) return;
-         if (!process.env.API_KEY) {
+        if (!process.env.API_KEY) {
             addToast('API Key is not configured for AI features.', 'error');
             return;
         }
-        setIsProcessing(true);
+        setIsReplacingBackground(true);
         try {
-            const newImage = await replaceBackground(formData.photo);
+            let imageToSend = formData.photo;
+            if (formData.photo.startsWith('http')) {
+                imageToSend = await urlToBase64(formData.photo);
+            }
+            const newImage = await replaceBackground(imageToSend);
             setFormData(prev => ({...prev, photo: newImage}));
             addToast('AI background applied!', 'success');
         } catch(error) {
             addToast((error as Error).message, 'error');
         } finally {
-            setIsProcessing(false);
+            setIsReplacingBackground(false);
         }
     };
 
@@ -368,6 +380,8 @@ const EmployeeFormModal: React.FC<{
             saveEmployee();
         }
     };
+    
+    const isProcessing = isAutoFilling || isReplacingBackground;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex justify-center items-center z-40 p-4" onClick={onClose}>
@@ -384,7 +398,7 @@ const EmployeeFormModal: React.FC<{
                     {/* Left side: Form fields */}
                     <div className="space-y-4">
                          <button type="button" onClick={handleAutoFill} disabled={isProcessing || !process.env.API_KEY} className="w-full flex items-center justify-center bg-gray-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm hover:bg-gray-700 transition disabled:bg-gray-400">
-                             {isProcessing ? 'Generating...' : <>{Icons.ai} AI Auto-fill</>}
+                             {isAutoFilling ? 'Generating...' : <>{Icons.ai} AI Auto-fill</>}
                         </button>
                         <div className="grid grid-cols-2 gap-4">
                            <input type="text" name="firstName" placeholder="First Name" value={formData.firstName || ''} onChange={handleChange} required className="w-full p-3 bg-gray-100 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white" />
@@ -407,7 +421,7 @@ const EmployeeFormModal: React.FC<{
                     
                     {/* Right side: Webcam */}
                     <div className="flex flex-col items-center justify-center space-y-3 bg-gray-50 p-6 rounded-xl">
-                        <p className="font-medium text-center text-gray-700">Employee Photo {!faceApiReady && '(Loading AI...)'}</p>
+                        <p className="font-medium text-center text-gray-700">Employee Photo</p>
                         <WebcamCapture 
                             image={formData.photo || null}
                             onCapture={handlePhotoCapture}
@@ -415,7 +429,7 @@ const EmployeeFormModal: React.FC<{
                                 setFormData(p => ({...p, photo: ''}));
                                 setNewEmbedding(null);
                             }}
-                            processing={isProcessing}
+                            processing={isReplacingBackground}
                             onBackgroundReplace={handleBackgroundReplace}
                         />
                         <div className="h-6 text-sm text-green-600 font-medium">
@@ -426,7 +440,7 @@ const EmployeeFormModal: React.FC<{
                     {/* Footer: Buttons */}
                     <div className="md:col-span-2 flex justify-end space-x-3 border-t pt-6 mt-4">
                         <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 font-medium py-2.5 px-6 rounded-lg hover:bg-gray-300 transition">Cancel</button>
-                        <button type="submit" disabled={isProcessing || !faceApiReady} className="bg-black text-white font-medium py-2.5 px-6 rounded-lg shadow-sm hover:bg-gray-800 transition disabled:bg-gray-400">Save Employee</button>
+                        <button type="submit" disabled={isProcessing} className="bg-black text-white font-medium py-2.5 px-6 rounded-lg shadow-sm hover:bg-gray-800 transition disabled:bg-gray-400">Save Employee</button>
                     </div>
                 </form>
             </div>
@@ -543,9 +557,9 @@ const AuditLogTimeline: React.FC<{ logs: AuditLog[] }> = ({ logs }) => {
     );
 };
 
-const SummaryCharts: React.FC<{ logs: AuditLog[] }> = ({ logs }) => {
+const LuxurySummaryChart: React.FC<{ logs: AuditLog[] }> = ({ logs }) => {
     if (typeof Recharts === 'undefined') return null;
-    const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+    const { RadialBarChart, RadialBar, Legend, Tooltip, ResponsiveContainer } = Recharts;
 
     const tasksByAction = logs.reduce((acc, log) => {
         acc[log.action] = (acc[log.action] || 0) + 1;
@@ -555,34 +569,61 @@ const SummaryCharts: React.FC<{ logs: AuditLog[] }> = ({ logs }) => {
     const chartData = Object.entries(tasksByAction).map(([action, count]) => ({
         name: action,
         tasks: count,
+        // The fill is now controlled by the gradient url
     }));
 
     if (chartData.length === 0) {
         return <div className="text-center p-8 text-gray-500">No audit log data available for this employee.</div>;
     }
 
+    const CustomTooltip = ({ active, payload }: any) => {
+      if (active && payload && payload.length) {
+        return (
+          <div className="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-gray-200">
+            <p className="font-bold text-gray-800">{`${payload[0].payload.name}`}</p>
+            <p className="text-gray-600">{`Tasks: ${payload[0].value}`}</p>
+          </div>
+        );
+      }
+      return null;
+    };
+    
     return (
-        <div>
-            <h4 className="text-lg font-semibold mb-4 text-center text-gray-700">Tasks by Action Type</h4>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" stroke="#6b7280" fontSize={12} interval={0} angle={-30} textAnchor="end" height={80} />
-                    <YAxis stroke="#6b7280" fontSize={12} />
-                    <Tooltip wrapperClassName="!rounded-lg !border-gray-200 !shadow-lg" />
-                    <Bar dataKey="tasks" fill="#60a5fa" radius={[4, 4, 0, 0]} />
-                </BarChart>
+        <div style={{ width: '100%', height: 350 }}>
+            <h4 className="text-lg font-semibold mb-4 text-center text-gray-700">Task Breakdown</h4>
+            <ResponsiveContainer>
+                <RadialBarChart 
+                    innerRadius="20%" 
+                    outerRadius="80%" 
+                    data={chartData} 
+                    startAngle={180} 
+                    endAngle={0}
+                    barSize={15}
+                >
+                    <defs>
+                        <linearGradient id="luxuryGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.9}/>
+                        </linearGradient>
+                    </defs>
+                    <RadialBar
+                        minAngle={15}
+                        background
+                        clockWise
+                        dataKey="tasks"
+                        fill="url(#luxuryGradient)"
+                    />
+                    <Legend iconSize={10} width={120} height={140} layout="vertical" verticalAlign="middle" align="right" />
+                    <Tooltip content={<CustomTooltip />} />
+                </RadialBarChart>
             </ResponsiveContainer>
         </div>
     );
 };
 
 
-const LeaderboardPyramid: React.FC<{ logs: AuditLog[], employees: Employee[] }> = ({ logs, employees }) => {
-    if (typeof Recharts === 'undefined') return null;
-    const { FunnelChart, Funnel, Tooltip, ResponsiveContainer, LabelList } = Recharts;
-
-     const tasksPerEmployee = logs.reduce((acc, log) => {
+const LuxuryLeaderboard: React.FC<{ logs: AuditLog[]; employees: Employee[] }> = ({ logs, employees }) => {
+    const tasksPerEmployee = logs.reduce((acc, log) => {
         acc[log.employeeId] = (acc[log.employeeId] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
@@ -590,21 +631,47 @@ const LeaderboardPyramid: React.FC<{ logs: AuditLog[], employees: Employee[] }> 
     const leaderboardData = Object.entries(tasksPerEmployee)
         .map(([employeeId, count]) => {
             const employee = employees.find(e => e.id === employeeId);
-            return { name: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown', value: count, fill: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}` };
+            return { 
+                id: employeeId,
+                name: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown', 
+                photo: employee ? employee.photo : '',
+                value: count, 
+            };
         })
-        .sort((a, b) => b.value - a.value);
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10); // Top 10
+
+    const maxValue = Math.max(...leaderboardData.map(d => d.value), 0);
+
+    const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+    
+    if (leaderboardData.length === 0) {
+        return <div className="text-center p-8 text-gray-500">No leaderboard data available.</div>;
+    }
 
     return (
-        <div className="flex flex-col items-center">
-            <h4 className="text-lg font-semibold mb-4 text-center text-gray-700">Top Performers Pyramid</h4>
-            <ResponsiveContainer width="100%" height={400}>
-                <FunnelChart>
-                    <Tooltip />
-                    <Funnel dataKey="value" data={leaderboardData} isAnimationActive>
-                        <LabelList position="right" fill="#000" stroke="none" dataKey="name" />
-                    </Funnel>
-                </FunnelChart>
-            </ResponsiveContainer>
+        <div className="w-full p-4">
+            <h4 className="text-lg font-semibold mb-6 text-center text-gray-700">Top Performers</h4>
+            <div className="space-y-4">
+                {leaderboardData.map((item, index) => (
+                    <div key={item.id} className="flex items-center space-x-4 group">
+                        <span className="font-bold text-gray-500 w-6 text-center" style={{color: medalColors[index]}}>
+                            {index < 3 ? '●' : index + 1}
+                        </span>
+                        <img src={item.photo} alt={item.name} className="w-10 h-10 rounded-full object-cover transition-shadow duration-300 group-hover:shadow-lg"/>
+                        <div className="flex-grow">
+                            <p className="font-semibold text-gray-800">{item.name}</p>
+                            <div className="bg-gray-200 rounded-full h-2.5 mt-1 overflow-hidden">
+                                <div 
+                                    className="bg-gradient-to-r from-blue-400 to-purple-500 h-full rounded-full transition-all duration-700 ease-out"
+                                    style={{ width: `${(item.value / maxValue) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                        <span className="font-bold text-gray-800 w-12 text-right">{item.value}</span>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
@@ -634,7 +701,7 @@ const EmployeeDetails: React.FC<{ employeeId: string; onBack: () => void }> = ({
     const tabs = [
         { id: 'audit', label: 'Audit Log' },
         { id: 'summary', label: 'Summary Charts' },
-        { id: 'leaderboard', label: 'Leaderboard & Pyramid' },
+        { id: 'leaderboard', label: 'Leaderboard' },
     ];
 
     return (
@@ -677,8 +744,8 @@ const EmployeeDetails: React.FC<{ employeeId: string; onBack: () => void }> = ({
             
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200/80 min-h-[300px]">
                 {activeTab === 'audit' && <AuditLogTimeline logs={employeeLogs} />}
-                {activeTab === 'summary' && (rechartsReady ? <SummaryCharts logs={employeeLogs} /> : <div className="text-center p-8">Loading Charts...</div>)}
-                {activeTab === 'leaderboard' && (rechartsReady ? <LeaderboardPyramid logs={auditLogs} employees={employees} /> : <div className="text-center p-8">Loading Charts...</div>)}
+                {activeTab === 'summary' && (rechartsReady ? <LuxurySummaryChart logs={employeeLogs} /> : <div className="text-center p-8">Loading Charts...</div>)}
+                {activeTab === 'leaderboard' && (rechartsReady ? <LuxuryLeaderboard logs={auditLogs} employees={employees} /> : <div className="text-center p-8">Loading Charts...</div>)}
             </div>
         </div>
     );
