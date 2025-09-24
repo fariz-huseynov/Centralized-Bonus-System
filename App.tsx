@@ -82,10 +82,9 @@ function useFaceApi() {
 
     useEffect(() => {
         const loadModels = async () => {
-            const MODEL_URL = 'https://unpkg.com/face-api.js@0.22.2/weights';
+            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/weights';
             try {
                 await Promise.all([
-                    // Switch to the lighter, more reliable tinyFaceDetector model
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
@@ -100,7 +99,6 @@ function useFaceApi() {
 
     const getEmbedding = async (imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) => {
         if (!isReady) return null;
-        // Specify the tinyFaceDetector options when detecting faces
         const options = new faceapi.TinyFaceDetectorOptions();
         const detections = await faceapi.detectSingleFace(imageElement, options).withFaceLandmarks().withFaceDescriptor();
         return detections ? Array.from(detections.descriptor as number[]) : null;
